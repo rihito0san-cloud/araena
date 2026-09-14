@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MinerPotatos controller</title>
+<style>
+  :root{
+    --bg:#0b0710; --panel:#150d1f; --line:#2a1b3d; --ink:#e9e2f5;
+    --dim:#9b8bb4; --pink:#ff6fb5; --violet:#a06bff; --ok:#4ade80;
+    --warn:#fbbf24; --bad:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  h1{font-size:20px;margin:0 0 4px;
+     background:linear-gradient(90deg,var(--pink),var(--violet));
+     -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--dim);font-size:12px;margin-bottom:18px;word-break:break-all}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .card h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+           color:var(--dim);margin:0 0 10px}
+  .big{font-size:24px;font-variant-numeric:tabular-nums;font-weight:600}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:4px 0;
+       border-bottom:1px dashed var(--line);font-size:13px}
+  .row:last-child{border-bottom:0}
+  .k{color:var(--dim)}
+  .v{font-variant-numeric:tabular-nums;text-align:right;word-break:break-all}
+  button{background:linear-gradient(90deg,var(--pink),var(--violet));color:#fff;
+         border:0;border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer}
+  button.ghost{background:#221533;border:1px solid var(--line);color:var(--ink)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input{width:100%;background:#0f0a18;border:1px solid var(--line);color:var(--ink);
+        border-radius:9px;padding:8px 10px;font:13px ui-monospace,monospace}
+  .stack{display:flex;flex-direction:column;gap:8px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;
+        border:1px solid var(--line);background:#1b1128}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  .ev{font:12px/1.45 ui-monospace,monospace;color:var(--dim);
+      max-height:230px;overflow:auto;word-break:break-word}
+  .ev div{padding:2px 0;border-bottom:1px solid #1d1229}
+  .mono{font-family:ui-monospace,monospace;font-size:12px;word-break:break-all}
+  .wide{grid-column:1/-1}
+  @media(max-width:620px){.big{font-size:19px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MinerPotatos controller</h1>
+  <div class="sub" id="ident">connecting…</div>
+
+  <div class="bar">
+    <button id="btnStart">Start mining</button>
+    <button id="btnPause" class="ghost">Pause</button>
+    <button id="btnAuto" class="ghost">Auto-submit: off</button>
+    <button id="btnSubmit" class="ghost">Submit one proof</button>
+    <button id="btnRecon" class="ghost">Reconcile open tx</button>
+    <button id="btnForget" class="ghost">Forget keys</button>
+  </div>
+
+  <div class="grid">
+    <div class="card"><h2>Hash rate (fresh only)</h2>
+      <div class="big" id="hps">–</div>
+      <div class="row"><span class="k">Workers hashing</span><span class="v" id="wc">–</span></div>
+    </div>
+    <div class="card"><h2>Target</h2>
+      <div class="big" id="bits">–</div>
+      <div class="row"><span class="k">Expected hashes</span><span class="v" id="exph">–</span></div>
+      <div class="row"><span class="k">ETA at this rate</span><span class="v" id="eta">–</span></div>
+    </div>
+    <div class="card"><h2>Mint price</h2>
+      <div class="big" id="price">–</div>
+      <div class="row"><span class="k">Collection</span><span class="v" id="supply">–</span></div>
+      <div class="row"><span class="k">Epoch</span><span class="v" id="epoch">–</span></div>
+    </div>
+    <div class="card"><h2>Budget</h2>
+      <div class="big" id="remain">–</div>
+      <div class="row"><span class="k">Cap</span><span class="v" id="cap">–</span></div>
+      <div class="row"><span class="k">Spent</span><span class="v" id="spent">–</span></div>
+      <div class="row"><span class="k">Reserved</span><span class="v" id="resv">–</span></div>
+    </div>
+
+    <div class="card"><h2>Signer</h2>
+      <div class="row"><span class="k">Selected</span><span class="v mono" id="signer">–</span></div>
+      <div class="row"><span class="k">Key loaded</span><span class="v" id="signerState">–</span></div>
+      <div class="row"><span class="k">Mints</span><span class="v" id="mints">0</span></div>
+      <div class="row"><span class="k">Chain age</span><span class="v" id="age">–</span></div>
+    </div>
+
+    <div class="card"><h2>Set spending cap</h2>
+      <div class="stack">
+        <input id="capEth" type="number" step="0.001" min="0" placeholder="cap in ETH">
+        <button id="btnCap">Apply cap</button>
+        <div class="k" style="font-size:11px">Nothing spends until you set this.
+          Lowering it below existing obligations is refused.</div>
+      </div>
+    </div>
+
+    <div class="card"><h2>Import signer key</h2>
+      <div class="stack">
+        <input id="pk" type="password" autocomplete="off"
+               placeholder="0x… 32-byte hex, memory only">
+        <button id="btnKey">Import &amp; select</button>
+        <div class="k" style="font-size:11px">Held in process memory only.
+          Never written to disk or sent to a GPU worker.</div>
+      </div>
+    </div>
+
+    <div class="card"><h2>Enroll device</h2>
+      <div class="stack">
+        <input id="devIdx" type="number" min="0" step="1" placeholder="GPU index, e.g. 0">
+        <button id="btnEnroll">Start worker</button>
+        <div class="k" style="font-size:11px">A worker is only trusted with
+          jobs after its own self-test passes.</div>
+      </div>
+    </div>
+
+    <div class="card wide"><h2>Workers</h2><div id="workers" class="ev">–</div></div>
+    <div class="card wide"><h2>Transactions</h2><div id="txs" class="ev">–</div></div>
+    <div class="card wide"><h2>Events</h2><div id="events" class="ev">–</div></div>
+  </div>
+</div>
+
+<script>
+const TOKEN = (location.hash.match(/token=([^&]+)/)||[])[1] || "";
+const H = {"X-Panel-Token": TOKEN, "Content-Type": "application/json"};
+
+async function api(path, body){
+  const opt = {headers:H, method: body ? "POST" : "GET"};
+  if (body) opt.body = JSON.stringify(body);
+  const r = await fetch(path, opt);
+  const j = await r.json().catch(()=>({error:"bad response"}));
+  if (!r.ok) throw new Error(j.error || ("HTTP "+r.status));
+  return j;
+}
+const $ = id => document.getElementById(id);
+const eth = w => (w===null||w===undefined) ? "unknown" : (Number(w)/1e18).toFixed(5);
+const fmt = n => n===null||n===undefined ? "–" :
+  (n>=1e12 ? (n/1e12).toFixed(2)+" TH/s" :
+   n>=1e9  ? (n/1e9).toFixed(2)+" GH/s" :
+   n>=1e6  ? (n/1e6).toFixed(2)+" MH/s" :
+   n>=1e3  ? (n/1e3).toFixed(2)+" kH/s" : n.toFixed(0)+" H/s");
+const ts = t => new Date(t*1000).toLocaleTimeString();
+function flash(el,msg,ms){const o=el.textContent;el.textContent=msg;
+  setTimeout(()=>{el.textContent=o},ms||1600);}
+
+async function refresh(){
+  try{
+    const s = await api("/api/state");
+    $("ident").textContent = `chain ${s.chain_id} · contract ${s.contract}`;
+    $("hps").textContent = fmt(s.fleet.fresh_hashrate);
+    $("wc").textContent = s.fleet.fresh_count + " / " + s.fleet.workers.length;
+    $("bits").textContent = s.target_bits!==null ? s.target_bits.toFixed(2)+" bits" : "–";
+    $("exph").textContent = s.expected_hashes ? s.expected_hashes.toExponential(2) : "–";
+    $("eta").textContent = s.eta_seconds ? (s.eta_seconds<3600
+        ? s.eta_seconds.toFixed(0)+" s"
+        : (s.eta_seconds/3600).toFixed(1)+" h") : "start mining";
+    const st = s.status || {};
+    $("price").textContent = st.price!==undefined ? eth(st.price)+" ETH" : "–";
+    $("supply").textContent = st.supply!==undefined ? `${st.supply} / ${st.maxSupply}` : "–";
+    $("epoch").textContent = st.epoch!==undefined ? `${st.epoch} (streak ${st.streak})` : "–";
+    const b = s.budget || {};
+    $("remain").textContent = eth(b.remaining_wei)+" ETH";
+    $("cap").textContent = eth(b.cap_wei)+" ETH";
+    $("spent").textContent = eth(b.spent_wei)+" ETH";
+    $("resv").textContent = eth(b.reserved_wei)+" ETH";
+    $("signer").textContent = s.signer || "none";
+    $("signerState").textContent = ({loaded:"yes", waiting_for_key:"WAITING FOR KEY",
+      none:"no signer"})[s.signer_state] || s.signer_state;
+    $("signerState").className = "v " + (s.signer_state==="loaded"?"ok":
+      (s.signer_state==="none"?"":"warn"));
+    $("mints").textContent = s.mints;
+    $("age").textContent = s.chain_error ? ("error: "+s.chain_error).slice(0,60)
+      : (s.chain_age||0).toFixed(1)+" s";
+    $("age").className = "v " + (s.chain_error ? "bad" : "ok");
+    $("btnAuto").textContent = "Auto-submit: " + (s.autosubmit?"on":"off");
+    $("btnAuto").className = s.autosubmit ? "" : "ghost";
+    $("btnStart").disabled = s.running && !s.paused;
+
+    $("workers").innerHTML = s.fleet.workers.length ? s.fleet.workers.map(w=>
+      `<div><span class="${w.fresh?'ok':(w.error?'bad':'warn')}">${w.state}</span>
+       ${w.label} · ${w.device_name||w.backend||'–'} ·
+       ${fmt(w.hashrate)}${w.fresh?'':' (stale)'} ·
+       selftest ${w.selftest_ok?'ok':'–'} · solutions ${w.solutions}
+       ${w.error?('<span class="bad"> · '+w.error+'</span>'):''}
+       <button class="ghost" data-rm="${w.worker_id}"
+         style="padding:1px 7px;font-size:11px">remove</button></div>`).join("")
+      : "no workers enrolled";
+    $("txs").innerHTML = (s.txs||[]).length ? s.txs.map(t=>
+      `<div>${ts(t.created_at)} <span class="${t.state==='confirmed'?'ok':
+        (t.state==='failed'||t.state==='dropped')?'bad':'warn'}">${t.state}</span>
+       ${t.tx_hash?t.tx_hash.slice(0,18)+'…':'(not broadcast)'}
+       ${t.token_id!==null&&t.token_id!==undefined?('token '+t.token_id):''}
+       ${t.note||''}</div>`).join("") : "none yet";
+    $("events").innerHTML = (s.events||[]).map(e=>
+      `<div>${ts(e.ts)} <span class="k">${e.kind}</span> ${e.message}</div>`).join("")
+      || "none yet";
+    document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{
+      await api("/api/remove",{worker_id:b.dataset.rm}); refresh();});
+  }catch(e){
+    $("ident").textContent = "controller unreachable or token mismatch: "+e.message;
+    $("ident").className = "sub bad";
+  }
+}
+
+$("btnKey").onclick = async ()=>{
+  const v = $("pk").value.trim();
+  if(!v) return;
+  try{
+    const r = await api("/api/import-key",{private_key:v});
+    $("pk").value = "";                       // clear immediately
+    await api("/api/active-signer",{address:r.address});
+    flash($("signerState"),"imported"); refresh();
+  }catch(e){ alert(e.message); }
+};
+$("btnCap").onclick = async ()=>{
+  const v = parseFloat($("capEth").value);
+  if(!(v>0)) return alert("enter a cap in ETH");
+  try{ await api("/api/cap",{cap_eth:v}); flash($("cap"),"applied"); refresh(); }
+  catch(e){ alert(e.message); }
+};
+$("btnEnroll").onclick = async ()=>{
+  const v = $("devIdx").value;
+  if(v==="") return alert("enter a GPU index");
+  try{ await api("/api/enroll",{device:parseInt(v,10)}); refresh(); }
+  catch(e){ alert(e.message); }
+};
+$("btnStart").onclick = async ()=>{ await api("/api/mining",{start:true}); refresh(); };
+$("btnPause").onclick = async ()=>{ await api("/api/mining",{start:false}); refresh(); };
+$("btnAuto").onclick = async ()=>{
+  const on = $("btnAuto").textContent.includes("off");
+  await api("/api/autosubmit",{on}); refresh(); };
+$("btnSubmit").onclick = async ()=>{
+  try{ const r = await api("/api/submit",{}); flash($("mints"),"submitted"); refresh(); }
+  catch(e){ alert(e.message); } };
+$("btnRecon").onclick = async ()=>{ await api("/api/reconcile",{}); refresh(); };
+$("btnForget").onclick = async ()=>{
+  if(!confirm("Clear all in-memory keys? You will need to re-enter them.")) return;
+  await api("/api/forget-keys",{}); refresh(); };
+
+refresh(); setInterval(refresh, 2000);
+</script>
+</body>
+</html>

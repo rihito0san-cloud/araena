@@ -1,0 +1,39 @@
+# Operator state — never commit. These hold spending history, public wallet
+# rows and the selected signer address. The guide requires each new operator to
+# start from an empty ledger rather than inherit a previous one.
+controller/launch.sqlite
+controller/launch.sqlite-shm
+controller/launch.sqlite-wal
+controller/active-signer.json
+
+# Generated local URL files may embed live access tokens.
+*.url
+controller/*.local-url
+
+# Compiled workers: architecture-specific, rebuilt by worker/build.sh.
+worker/miner
+worker/miner-*
+worker/miner-sm*
+*.o
+*.obj
+*.exe
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environment / rental config
+.env
+vast-config.json
+validated-fleet.json
+*.pem
+id_rsa*
+
+# OS noise
+.DS_Store
+Thumbs.db

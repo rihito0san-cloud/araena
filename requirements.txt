@@ -1,0 +1,19 @@
+# MinerPotatos controller -- pinned to the versions these tests pass on.
+# Verified against Python 3.13.14; eth-account 0.14 is significant because
+# sign_transaction() there rejects a non-checksummed `to`, which submit.py
+# normalizes explicitly.
+
+eth-account==0.14.0
+eth-abi==6.0.0
+eth-utils==6.0.0
+eth-typing==6.0.0
+eth-keys==0.8.0
+eth-hash==0.8.0
+eth-rlp==3.0.0
+hexbytes==2.0.0
+rlp==5.0.0
+pycryptodome==3.23.0
+requests==2.33.0
+
+# Test suite only.
+pytest==9.0.3
